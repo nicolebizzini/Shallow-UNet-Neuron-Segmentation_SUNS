@@ -27,3 +27,4 @@ demo/data/01.00.h5
 demo/data/TUnCaT_noSF/
 **/FinalMasks_*_sparse.mat
 *.h5
+*.mat
