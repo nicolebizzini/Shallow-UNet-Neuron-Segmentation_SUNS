@@ -25,3 +25,4 @@ demo/other
 installation/*61.py
 demo/data/01.00.h5
 demo/data/TUnCaT_noSF/
+**/FinalMasks_*_sparse.mat
