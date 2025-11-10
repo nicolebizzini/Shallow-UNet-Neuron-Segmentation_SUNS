@@ -8,11 +8,34 @@ import numpy as np
 import h5py
 from scipy.io import savemat, loadmat
 import multiprocessing as mp
-import tensorflow as tf
 import gc
 
+# Set critical environment flags BEFORE importing TensorFlow
 os.environ['KERAS_BACKEND'] = 'tensorflow'
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Set which GPU to use. '-1' uses only CPU.
+# Toggle GPU via env: export SUNS_USE_GPU=1 to enable GPU (default on)
+USE_GPU = os.environ.get('SUNS_USE_GPU', '1') == '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = ('0' if USE_GPU else '-1')
+# Hard-disable XLA to avoid libdevice requirements on clusters
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_auto_jit=off --tf_xla_enable_xla_devices=false'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
+
+import tensorflow as tf
+try:
+    if not USE_GPU:
+        tf.config.set_visible_devices([], 'GPU')
+    else:
+        gpus = tf.config.list_physical_devices('GPU')
+        if gpus:
+            for gpu in gpus:
+                try:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                except Exception:
+                    pass
+        else:
+            print('Warning: SUNS_USE_GPU=1 but no GPU visible; using CPU.')
+except Exception:
+    pass
 
 from suns.Network.data_gen import data_gen
 from suns.Network.shallow_unet import get_shallow_unet
@@ -21,7 +44,8 @@ from suns.PostProcessing.complete_post import parameter_optimization
 
 
 def train_CNN(dir_img, dir_mask, file_CNN, list_Exp_ID_train, list_Exp_ID_val, \
-    BATCH_SIZE, NO_OF_EPOCHS, num_train_per, num_total, dims, Params_loss=None, exist_model=None):
+    BATCH_SIZE, NO_OF_EPOCHS, num_train_per, num_total, dims, Params_loss=None, exist_model=None, \
+    fine_tune_lr=None, unfreeze_last_k=None, use_early_stopping=True):
     '''Train a CNN model using SNR images in "dir_img" and the corresponding temporal masks in "dir_mask" 
         identified for each video in "list_Exp_ID_train" using tensorflow generater formalism.
         The output are the trained CNN model saved in "file_CNN" and "results" containing loss. 
@@ -47,6 +71,9 @@ def train_CNN(dir_img, dir_mask, file_CNN, list_Exp_ID_train, list_Exp_ID_val, \
             Params_loss['gamma'] (float): first parameter of focal loss
             Params_loss['alpha'] (float): second parameter of focal loss
         exist_model (str, default to None): the path of existing model for transfer learning 
+        fine_tune_lr (float, default to None): if set and exist_model provided, recompile with this learning rate
+        unfreeze_last_k (int, default to None): if set and exist_model provided, freeze all but last K layers
+        use_early_stopping (bool): add EarlyStopping/ReduceLROnPlateau callbacks
 
     Outputs:
         results: the training results containing the loss information.
@@ -120,19 +147,62 @@ def train_CNN(dir_img, dir_mask, file_CNN, list_Exp_ID_train, list_Exp_ID_val, \
         val_gen = None
         NO_OF_VAL_IMAGES = 0
 
+    # Ensure XLA JIT is disabled programmatically as well
+    try:
+        tf.config.optimizer.set_jit(False)
+    except Exception:
+        pass
+    # Disable layout/Remapper optimizers that can force NHWC<->NCHW transposes
+    try:
+        tf.config.optimizer.set_experimental_options({
+            'layout_optimizer': False,
+            'remapping': False,
+            'constant_folding': True
+        })
+    except Exception:
+        pass
+    try:
+        os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '0'
+        os.environ['TF_USE_LEGACY_KERAS'] = '0'
+        os.environ['TF_DISABLE_MKL'] = '1'
+        os.environ['TF_NUM_INTEROP_THREADS'] = '1'
+        os.environ['TF_NUM_INTRAOP_THREADS'] = '1'
+    except Exception:
+        pass
+    # Also disable XLA experimental runtime if present
+    try:
+        tf.config.experimental.enable_tensor_float_32_execution(False)
+    except Exception:
+        pass
     fff = get_shallow_unet(size=None, Params_loss=Params_loss)
     # The alternative line has more options to choose
     # fff = get_shallow_unet_more(size=None, n_depth=3, n_channel=4, skip=[1], activation='elu', Params_loss=Params_loss)
     if exist_model is not None:
         fff.load_weights(exist_model)
+        if unfreeze_last_k is not None and unfreeze_last_k > 0:
+            cutoff = max(0, len(fff.layers) - int(unfreeze_last_k))
+            for li, layer in enumerate(fff.layers):
+                layer.trainable = (li >= cutoff)
+        if fine_tune_lr is not None:
+            # Recompile with a smaller LR for fine-tuning using legacy Adam to avoid XLA-only update paths on some clusters
+            try:
+                opt_ft = tf.keras.optimizers.legacy.Adam(learning_rate=fine_tune_lr)
+            except Exception:
+                opt_ft = tf.keras.optimizers.Adam(learning_rate=fine_tune_lr)
+            fff.compile(optimizer=opt_ft, loss=fff.loss, metrics=[m for m in fff.metrics], jit_compile=False)
 
 
     class LossAndErrorPrintingCallback(tf.keras.callbacks.Callback):
         def on_epoch_end(self, epoch, logs=None):
             print('\n\nThe average loss for epoch {} is {:7.4f}.'.format(epoch, logs['loss']))
     # train CNN
-    results = fff.fit_generator(train_gen, epochs=NO_OF_EPOCHS, steps_per_epoch = (NO_OF_TRAINING_IMAGES//BATCH_SIZE),
-                            validation_data=val_gen, validation_steps=(NO_OF_VAL_IMAGES//BATCH_SIZE), verbose=1, callbacks=[LossAndErrorPrintingCallback()])
+    callbacks = [LossAndErrorPrintingCallback()]
+    if use_early_stopping:
+        callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss' if val_gen is not None else 'loss', factor=0.5, patience=5, min_lr=1e-6, verbose=1))
+        callbacks.append(tf.keras.callbacks.EarlyStopping(monitor='val_loss' if val_gen is not None else 'loss', patience=12, restore_best_weights=True, verbose=1))
+
+    results = fff.fit(train_gen, epochs=NO_OF_EPOCHS, steps_per_epoch = (NO_OF_TRAINING_IMAGES//BATCH_SIZE),
+                      validation_data=val_gen, validation_steps=(NO_OF_VAL_IMAGES//BATCH_SIZE), verbose=1, callbacks=callbacks)
 
     # save trained CNN model 
     fff.save_weights(file_CNN)
@@ -140,7 +210,7 @@ def train_CNN(dir_img, dir_mask, file_CNN, list_Exp_ID_train, list_Exp_ID_val, \
 
 
 def parameter_optimization_pipeline(file_CNN, network_input, dims, \
-        Params_set, filename_GT, batch_size_eval=1, useWT=False, useMP=True, p=None):
+        Params_set, filename_GT, batch_size_eval=1, useWT=False, useMP=False, p=None):
     '''The complete parameter optimization pipeline for one video and one CNN model.
         It first infers the probablity map of every frame in "network_input" using the trained CNN model in "file_CNN", 
         then calculates the recall, precision, and F1 over all parameter combinations from "Params_set"

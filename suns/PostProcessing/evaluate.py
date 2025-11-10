@@ -4,6 +4,7 @@ from scipy.optimize import linear_sum_assignment
 import time
 
 
+#change ThreshJ to 0.20 orriginally was 0.50
 def GetPerformance_Jaccard_2(GTMasks, Masks, ThreshJ=0.5):
     '''Calculate the recall, precision, and F1 score of segmented neurons by comparing with ground truth.
 
@@ -25,6 +26,8 @@ def GetPerformance_Jaccard_2(GTMasks, Masks, ThreshJ=0.5):
     NMask = Masks.shape[0] # Number of segmented neurons
     a1 = np.repeat(GTMasks.sum(axis=1).A, NMask, axis=1)
     a2 = np.repeat(Masks.sum(axis=1).A.T, NGT, axis=0)
+    # print(f'GTMasks: {GTMasks.shape}')
+    # print(f'Masks: {Masks.shape}')
     intersectMat = GTMasks.dot(Masks.transpose()).A
     unionMat = a1 + a2 - intersectMat
     JaccardInd = intersectMat/unionMat # IoU between each pair of neurons

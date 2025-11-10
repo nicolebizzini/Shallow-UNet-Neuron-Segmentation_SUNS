@@ -7,7 +7,7 @@ def data_gen(train_img, train_mask, batch_size, flips=False, rotate=False):
         Used for CNN training.
 
     Inputs: 
-        train_img(3D numpy.ndarray of float32, shape = (T,Lx,Ly)): the SNR images
+        train_img(3D numpy.ndarray of float32, shape = (T,Lx,Ly)): the SNR images 
         train_mask(3D numpy.ndarray of uint8, shape = (T,Lx,Ly)): the temporal masks
         batch_size(int): batch size for training
         flips(bool, default to False): Indicator of whether random filpping is used.

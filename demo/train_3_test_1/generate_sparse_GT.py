@@ -1,14 +1,20 @@
 import os
+import sys
 import numpy as np
 import h5py
 from scipy.io import savemat, loadmat
 from scipy import sparse
 import glob
 
+# Add the suns directory to the path to import config
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'suns'))
+from config import DATAFOLDER_SETS, ACTIVE_EXP_SET
 
 if __name__ == '__main__':
     # Set the path of the 'GT Masks' folder, which contains the manual labels in 3D arrays.
-    dir_Masks = '../data/GT Masks'
+    # Use config to get the active dataset path
+    data_folder = DATAFOLDER_SETS[ACTIVE_EXP_SET]
+    dir_Masks = os.path.join(data_folder, 'GT Masks')
 
     # %%
     dir_all = glob.glob(os.path.join(dir_Masks,'*FinalMasks*.mat'))

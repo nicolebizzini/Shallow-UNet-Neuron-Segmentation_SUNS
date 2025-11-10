@@ -15,6 +15,7 @@ os.environ['KERAS_BACKEND'] = 'tensorflow'
 
 from suns.PostProcessing.evaluate import GetPerformance_Jaccard_2
 from suns.run_suns import suns_online
+from suns.config import DATAFOLDER_SETS, ACTIVE_EXP_SET, EXP_ID_SETS, OUTPUT_FOLDER, RATE_HZ, MAG
 
 import tensorflow as tf
 tf_version = int(tf.__version__[0])
@@ -34,31 +35,31 @@ if __name__ == '__main__':
     #-------------- Start user-defined parameters --------------#
     # %% set folders
     # file names of the ".h5" files storing the raw videos. 
-    list_Exp_ID = ['YST_part11', 'YST_part12', 'YST_part21', 'YST_part22'] 
+    list_Exp_ID = EXP_ID_SETS[ACTIVE_EXP_SET]
     # folder of the raw videos
-    dir_video = '../data' 
+    dir_video = DATAFOLDER_SETS[ACTIVE_EXP_SET] 
     # folder of the ".mat" files stroing the GT masks in sparse 2D matrices. 'FinalMasks_' is a prefix of the file names. 
     dir_GTMasks = os.path.join(dir_video, 'GT Masks', 'FinalMasks_') 
 
     # %% set video parameters
-    rate_hz = 10 # frame rate of the video
-    Mag = 6/8 # spatial magnification compared to ABO videos (0.785 um/pixel). # Mag = 0.785 / pixel_size
+    rate_hz = RATE_HZ[ACTIVE_EXP_SET] # frame rate of the video
+    Mag = MAG[ACTIVE_EXP_SET] # spatial magnification compared to ABO videos (0.785 um/pixel). # Mag = 0.785 / pixel_size
 
     # %% set pre-processing parameters
     gauss_filt_size = 50*Mag # standard deviation of the spatial Gaussian filter in pixels
     frames_init = 30 * rate_hz # number of frames used for initialization
     num_median_approx = frames_init # number of frames used to caluclate median and median-based standard deviation
     filename_TF_template = '../YST_spike_tempolate.h5' # file name of the temporal filter kernel
-    h5f = h5py.File(filename_TF_template,'r')
-    Poisson_filt = np.array(h5f['filter_tempolate']).squeeze().astype('float32')
-    h5f.close()
-    Poisson_filt = Poisson_filt[Poisson_filt>np.exp(-1)] # temporal filter kernel
-    Poisson_filt = Poisson_filt/Poisson_filt.sum()
-    # # Alternative temporal filter kernel using a single exponential decay function
-    # decay = 0.8 # decay time constant (unit: second)
-    # leng_tf = np.ceil(rate_hz*decay)+1
-    # Poisson_filt = np.exp(-np.arange(leng_tf)/rate_hz/decay)
-    # Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
+    # h5f = h5py.File(filename_TF_template,'r')
+    # Poisson_filt = np.array(h5f['filter_tempolate']).squeeze().astype('float32')
+    # h5f.close()
+    # Poisson_filt = Poisson_filt[Poisson_filt>np.exp(-1)] # temporal filter kernel
+    # Poisson_filt = Poisson_filt/Poisson_filt.sum()
+    # Alternative temporal filter kernel using a single exponential decay function
+    decay = 0.8 # decay time constant (unit: second)
+    leng_tf = np.ceil(rate_hz*decay)+1
+    Poisson_filt = np.exp(-np.arange(leng_tf)/rate_hz/decay)
+    Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
 
     # %% Set processing options
     useSF=False # True if spatial filtering is used in pre-processing.
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     update_baseline=True # True if the median and median-based std is updated every "frames_init" frames.
     prealloc=True # True if pre-allocate memory space for large variables in pre-processing. 
             # Achieve faster speed at the cost of higher memory occupation.
-    batch_size_init = 100 # batch size in CNN inference during initalization
+    batch_size_init = 60 #100 batch size in CNN inference during initalization
     useWT=False # True if using additional watershed
     show_intermediate=True # True if screen neurons with consecutive frame requirement after every merge
     display=True # True if display information about running time 
@@ -77,7 +78,7 @@ if __name__ == '__main__':
     #-------------- End user-defined parameters --------------#
 
 
-    dir_parent = os.path.join(dir_video, 'noSF') # folder to save all the processed data
+    dir_parent = os.path.join(dir_video, OUTPUT_FOLDER[ACTIVE_EXP_SET]) # folder to save all the processed data
     dir_output = os.path.join(dir_parent, 'output_masks online') # folder to save the segmented masks and the performance scores
     dir_params = os.path.join(dir_parent, 'output_masks') # folder of the optimized hyper-parameters
     weights_path = os.path.join(dir_parent, 'Weights') # folder of the trained CNN
@@ -143,8 +144,12 @@ if __name__ == '__main__':
             useSF=useSF, useTF=useTF, useSNR=useSNR, med_subtract=med_subtract, \
             update_baseline=update_baseline, useWT=useWT, \
             show_intermediate=show_intermediate, prealloc=prealloc, display=display, p=p)
+        # Convert times_active to MATLAB cell array for compatibility
+        times_active_cell = np.empty((len(times_active),), dtype=object)
+        for i, ta in enumerate(times_active):
+            times_active_cell[i] = np.asarray(ta, dtype=np.int32)
         savemat(os.path.join(dir_output, 'Output_Masks_{}.mat'.format(Exp_ID)), \
-            {'Masks':Masks, 'times_active':times_active, 'list_time_per':list_time_per}, do_compression=True)
+            {'Masks':Masks, 'times_active':times_active_cell, 'list_time_per':list_time_per}, do_compression=True)
 
         # %% Evaluation of the segmentation accuracy compared to manual ground truth
         filename_GT = dir_GTMasks + Exp_ID + '_sparse.mat'

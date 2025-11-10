@@ -14,14 +14,15 @@ os.environ['KERAS_BACKEND'] = 'tensorflow'
 
 from suns.PostProcessing.evaluate import GetPerformance_Jaccard_2
 from suns.run_suns import suns_batch
+from suns.config import DATAFOLDER_SETS, ACTIVE_EXP_SET, EXP_ID_SETS, OUTPUT_FOLDER, RATE_HZ, MAG
 
 import tensorflow as tf
 tf_version = int(tf.__version__[0])
 if tf_version == 1:
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    # config.gpu_options.per_process_gpu_memory_fraction = 0.5
-    sess = tf.Session(config = config)
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
+    # tf_config.gpu_options.per_process_gpu_memory_fraction = 0.5
+    sess = tf.Session(config = tf_config)
 else: # tf_version == 2:
     gpus = tf.config.list_physical_devices('GPU')
     for gpu in gpus:
@@ -35,34 +36,34 @@ if __name__ == '__main__':
     # file names of the ".h5" files storing the raw test videos. 
     # They usually should not overlap with the train videos, and the number of videos do not need to be the same as well.
     # We used the same videos as the train videos here only for demo. 
-    list_Exp_ID = ['YST_part11', 'YST_part12', 'YST_part21', 'YST_part22'] 
+    list_Exp_ID = EXP_ID_SETS[ACTIVE_EXP_SET]
     # number of train videos. Do not need to be the same as the number of test videos
-    nvideo_train = 4 
+    nvideo_train = len(list_Exp_ID) 
     # folder of the raw test videos
-    dir_video = '../data' 
+    dir_video = DATAFOLDER_SETS[ACTIVE_EXP_SET] 
     # folder of the raw train videos
-    dir_video_train = '../data' 
+    dir_video_train = DATAFOLDER_SETS[ACTIVE_EXP_SET] 
     # folder of the ".mat" files stroing the GT masks in sparse 2D matrices. 'FinalMasks_' is a prefix of the file names. 
     dir_GTMasks = os.path.join(dir_video, 'GT Masks', 'FinalMasks_') 
 
     # %% set video parameters
-    rate_hz = 10 # frame rate of the video
-    Mag = 6/8 # spatial magnification compared to ABO videos (0.785 um/pixel). # Mag = 0.785 / pixel_size
+    rate_hz = RATE_HZ[ACTIVE_EXP_SET] # frame rate of the video
+    Mag = MAG[ACTIVE_EXP_SET] # spatial magnification compared to ABO videos (0.785 um/pixel). # Mag = 0.785 / pixel_size
 
     # %% set pre-processing parameters
     gauss_filt_size = 50*Mag # standard deviation of the spatial Gaussian filter in pixels
     num_median_approx = 1000 # number of frames used to caluclate median and median-based standard deviation
-    filename_TF_template = '../YST_spike_tempolate.h5' # File name storing the temporal filter kernel
-    h5f = h5py.File(filename_TF_template,'r')
-    Poisson_filt = np.array(h5f['filter_tempolate']).squeeze().astype('float32')
-    h5f.close()
-    Poisson_filt = Poisson_filt[Poisson_filt>np.exp(-1)] # temporal filter kernel
-    Poisson_filt = Poisson_filt/Poisson_filt.sum()
-    # # Alternative temporal filter kernel using a single exponential decay function
-    # decay = 0.8 # decay time constant (unit: second)
-    # leng_tf = np.ceil(rate_hz*decay)+1
-    # Poisson_filt = np.exp(-np.arange(leng_tf)/rate_hz/decay)
-    # Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
+    # filename_TF_template = '../YST_spike_tempolate.h5' # File name storing the temporal filter kernel
+    # h5f = h5py.File(filename_TF_template,'r')
+    # Poisson_filt = np.array(h5f['filter_tempolate']).squeeze().astype('float32')
+    # h5f.close()
+    # Poisson_filt = Poisson_filt[Poisson_filt>np.exp(-1)] # temporal filter kernel
+    # Poisson_filt = Poisson_filt/Poisson_filt.sum()
+    # Alternative temporal filter kernel using a single exponential decay function
+    decay = 1.25 # decay time constant (unit: second)
+    leng_tf = np.ceil(rate_hz*decay)+1
+    Poisson_filt = np.exp(-np.arange(leng_tf)/rate_hz/decay)
+    Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
 
     # %% Set processing options
     useSF=False # True if spatial filtering is used in pre-processing.
@@ -72,14 +73,14 @@ if __name__ == '__main__':
         # Can only be used when spatial filtering is not used. 
     prealloc=True # True if pre-allocate memory space for large variables in pre-processing. 
             # Achieve faster speed at the cost of higher memory occupation.
-    batch_size_eval = 200 # batch size in CNN inference
+    batch_size_eval = 100# batch size in CNN inference
     useWT=False # True if using additional watershed
     display=True # True if display information about running time 
     #-------------- End user-defined parameters --------------#
 
 
-    dir_parent = os.path.join(dir_video, 'noSF use_all') # folder to save all the processed data for test videos
-    dir_parent_train = os.path.join(dir_video_train, 'noSF use_all') # folder to save all the processed data for train videos
+    dir_parent = os.path.join(dir_video, OUTPUT_FOLDER[ACTIVE_EXP_SET]) # folder to save all the processed data for test videos
+    dir_parent_train = os.path.join(dir_video_train, OUTPUT_FOLDER[ACTIVE_EXP_SET]) # folder to save all the processed data for train videos
     dir_output = os.path.join(dir_parent, 'output_masks') # folder to save the segmented masks and the performance scores
     dir_params = os.path.join(dir_parent_train, 'output_masks') # folder of the optimized hyper-parameters
     weights_path = os.path.join(dir_parent_train, 'Weights') # folder of the trained CNN
@@ -140,13 +141,19 @@ if __name__ == '__main__':
             dir_video, Exp_ID, filename_CNN, Params_pre, Params_post, batch_size_eval, \
             useSF=useSF, useTF=useTF, useSNR=useSNR, med_subtract=med_subtract, \
             useWT=useWT, prealloc=prealloc, display=display, p=p)
+        # Convert times_active (list of variable-length arrays) to MATLAB cell array
+        times_active_cell = np.empty((len(times_active),), dtype=object)
+        for i, ta in enumerate(times_active):
+            times_active_cell[i] = np.asarray(ta, dtype=np.int32)
         savemat(os.path.join(dir_output, 'Output_Masks_{}.mat'.format(Exp_ID)), \
-            {'Masks':Masks, 'times_active':times_active}, do_compression=True)
+            {'Masks': Masks, 'times_active': times_active_cell}, do_compression=True)
 
         # %% Evaluation of the segmentation accuracy compared to manual ground truth
         filename_GT = dir_GTMasks + Exp_ID + '_sparse.mat'
         data_GT=loadmat(filename_GT)
-        GTMasks_2 = data_GT['GTMasks_2'].transpose().astype('bool')
+        # Ensure GT masks are shaped as (N_gt_neurons, N_pixels)
+        GTMasks_2 = data_GT['GTMasks_2'].astype('bool')
+        print(f"GTMasks_2 shape: {GTMasks_2.shape}")
         (Recall,Precision,F1) = GetPerformance_Jaccard_2(GTMasks_2, Masks_2, ThreshJ=0.5)
         print({'Recall':Recall, 'Precision':Precision, 'F1':F1})
 

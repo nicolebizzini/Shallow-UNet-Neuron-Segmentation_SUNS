@@ -512,7 +512,15 @@ def preprocess_video(dir_video:str, Exp_ID:str, Params:dict,
     
     # %% Load the raw video into "bb"
     for t in range(nframes): # use this one to save memory
-        bb[t, :rows, :cols] = np.clip(np.array(h5_file[dset][t]), 0, None)
+        try:
+            bb[t, :rows, :cols] = np.clip(np.array(h5_file[dset][t]), 0, None)
+        except OSError as e:
+            # Handle compressed chunk read failures by repeating the previous frame (or zeros for t==0)
+            if t > 0:
+                bb[t, :rows, :cols] = bb[t-1, :rows, :cols]
+            else:
+                bb[t, :rows, :cols] = 0
+            print('Warning: failed to read frame {} in {}: {}; filled with previous/zeros'.format(t, h5_video, e))
     h5_file.close()
     if display:
         end_load = time.time()

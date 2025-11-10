@@ -1,4 +1,5 @@
 # %%
+from typing import Any
 import sys
 import os
 import random
@@ -12,7 +13,10 @@ import multiprocessing as mp
 
 sys.path.insert(1, '../..') # the path containing "suns" folder
 os.environ['KERAS_BACKEND'] = 'tensorflow'
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Set which GPU to use. '-1' uses only CPU.
+os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Set which GPU to use. '-1' uses only CPU.
+# Import config
+from suns import config
+print("importing config")
 
 from suns.PreProcessing.preprocessing_functions import preprocess_video, find_dataset
 from suns.PreProcessing.generate_masks import generate_masks
@@ -30,21 +34,53 @@ else: # tf_version == 2:
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
 
+    # ---- GPU visibility and quick verification ----
+    print(f"TensorFlow version: {tf.__version__}")
+    print("Visible GPUs:", gpus)
+    if gpus:
+        try:
+            for g in gpus:
+                det = tf.config.experimental.get_device_details(g)
+                name = det.get('device_name', 'Unknown GPU')
+                cc = det.get('compute_capability', 'n/a')
+                print(f"  - {g.name} | {name} | CC={cc}")
+        except Exception:
+            pass
+        # Small op to confirm /GPU:0 executes
+        try:
+            with tf.device('/GPU:0'):
+                a = tf.random.uniform((1024, 1024))
+                b = tf.random.uniform((1024, 1024))
+                _ = tf.matmul(a, b)
+            print('GPU sanity check: OK (matmul on /GPU:0)')
+        except Exception as e:
+            print('GPU sanity check failed, training may run on CPU:', repr(e))
+    else:
+        print('No GPU detected by TensorFlow; training will run on CPU.')
+
+    # Optional: enable device placement logging (verbose)
+    LOG_DEVICE_PLACEMENT = False
+    if LOG_DEVICE_PLACEMENT:
+        try:
+            tf.debugging.set_log_device_placement(True)
+        except Exception:
+            pass
+
 
 # %%
 if __name__ == '__main__':
     #-------------- Start user-defined parameters --------------#
-    # %% set folders
+    # %% set folders using config
     # file names of the ".h5" files storing the raw videos. 
-    list_Exp_ID = ['YST_part11', 'YST_part12', 'YST_part21', 'YST_part22'] 
+    list_Exp_ID = config.EXP_ID_SETS[config.ACTIVE_EXP_SET]
     # folder of the raw videos
-    dir_video = '../data' 
+    dir_video = config.DATAFOLDER_SETS[config.ACTIVE_EXP_SET]
     # folder of the ".mat" files stroing the GT masks in sparse 2D matrices. 'FinalMasks_' is a prefix of the file names. 
     dir_GTMasks = os.path.join(dir_video, 'GT Masks', 'FinalMasks_') 
     
-    # %% set video parameters
-    rate_hz = 10 # frame rate of the video
-    Mag = 6/8 # spatial magnification compared to ABO videos (0.785 um/pixel). # Mag = 0.785 / pixel_size
+    # %% set video parameters using config
+    rate_hz = config.RATE_HZ[config.ACTIVE_EXP_SET] # frame rate of the video
+    Mag = config.MAG[config.ACTIVE_EXP_SET] # spatial magnification compared to ABO videos (0.785 um/pixel). # Mag = 0.785 / pixel_size
 
     # %% set the range of post-processing hyper-parameters to be optimized in
     # minimum area of a neuron (unit: pixels in ABO videos). must be in ascend order
@@ -61,34 +97,34 @@ if __name__ == '__main__':
     # maximum COM distance of two masks to be considered the same neuron (unit: pixels in ABO videos)
     list_thresh_COM = list(np.arange(4, 9, 1)) 
     # minimum IoU of two masks to be considered the same neuron
-    list_thresh_IOU = [0.5] 
+    list_thresh_IOU = [0.5] #0.5 originally
     # minimum consecutive number of frames of active neurons
     list_cons = list(range(1, 8, 1)) 
 
     # %% set pre-processing parameters
     gauss_filt_size = 50*Mag # standard deviation of the spatial Gaussian filter in pixels
     num_median_approx = 1000 # number of frames used to caluclate median and median-based standard deviation
-    filename_TF_template = '../YST_spike_tempolate.h5' # File name storing the temporal filter kernel
-    h5f = h5py.File(filename_TF_template,'r')
-    Poisson_filt = np.array(h5f['filter_tempolate']).squeeze().astype('float32')
-    h5f.close()
-    Poisson_filt = Poisson_filt[Poisson_filt>np.exp(-1)] # temporal filter kernel
-    Poisson_filt = Poisson_filt/Poisson_filt.sum()
-    # # Alternative temporal filter kernel using a single exponential decay function
-    # decay = 0.8 # decay time constant (unit: second)
-    # leng_tf = np.ceil(rate_hz*decay)+1
-    # Poisson_filt = np.exp(-np.arange(leng_tf)/rate_hz/decay)
-    # Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
+    # filename_TF_template = '../YST_spike_tempolate.h5' # File name storing the temporal filter kernel
+    # h5f = h5py.File(filename_TF_template,'r')
+    # Poisson_filt = np.array(h5f['filter_tempolate']).squeeze().astype('float32')
+    # h5f.close()
+    # Poisson_filt = Poisson_filt[Poisson_filt>np.exp(-1)] # temporal filter kernel
+    # Poisson_filt = Poisson_filt/Poisson_filt.sum()
+    # Alternative temporal filter kernel using a single exponential decay function
+    decay = 1.25 # 6f: 0.8, 6s:1.25 decay time constant (unit: second)
+    leng_tf = np.ceil(rate_hz*decay)+1
+    Poisson_filt = np.exp(-np.arange(leng_tf)/rate_hz/decay)
+    Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
 
     # %% set training parameters
-    thred_std = 3 # SNR threshold used to determine when neurons are active
-    num_train_per = 2400 # Number of frames per video used for training 
-    NO_OF_EPOCHS = 200 # Number of epoches used for training 
+    thred_std = 2.5 # 3 SNR threshold used to determine when neurons are active : Try 2, 2.5 if data are noisy
+    num_train_per = 1280 # they used2400 Number of frames per video used for training (2400/3000=80%), same for mydata 80% isof 1600 frames
+    NO_OF_EPOCHS = 120 # 200 Number of epoches used for training 
     batch_size_eval = 100 # batch size in CNN inference
     list_thred_ratio = [thred_std] # A list of SNR threshold used to determine when neurons are active.
 
     # %% Set processing options
-    useSF=False # True if spatial filtering is used in pre-processing.
+    useSF=False #was setted to False, True if spatial filtering is used in pre-processing.
     useTF=True # True if temporal filtering is used in pre-processing.
     useSNR=True # True if pixel-by-pixel SNR normalization filtering is used in pre-processing.
     med_subtract=False # True if the spatial median of every frame is subtracted before temporal filtering.
@@ -99,7 +135,7 @@ if __name__ == '__main__':
     useWT=False # True if using additional watershed
     load_exist=False # True if using temp files already saved in the folders
     use_validation = True # True to use a validation set outside the training set
-    useMP = True # True to use multiprocessing to speed up
+    useMP = False # True to use multiprocessing to speed up
     BATCH_SIZE = 20 # Batch size for training 
     # Cross-validation strategy. Can be "leave_one_out", "train_1_test_rest", or "use_all"
     cross_validation = "leave_one_out"
@@ -107,7 +143,7 @@ if __name__ == '__main__':
     #-------------- End user-defined parameters --------------#
 
 
-    dir_parent = os.path.join(dir_video, 'noSF') # folder to save all the processed data
+    dir_parent = os.path.join(dir_video, config.OUTPUT_FOLDER[config.ACTIVE_EXP_SET]) # folder to save all the processed data
     dir_network_input = os.path.join(dir_parent, 'network_input') # folder of the SNR videos
     dir_mask = os.path.join(dir_parent, 'temporal_masks({})'.format(thred_std)) # foldr to save the temporal masks
     weights_path = os.path.join(dir_parent, 'Weights') # folder to save the trained CNN
@@ -157,7 +193,7 @@ if __name__ == '__main__':
     thresh_COM0= thresh_COM0 * Mag
     list_thresh_COM= list(np.array(list_thresh_COM) * Mag)
     # adjust the minimum consecutive number of frames according to different frames rates between ABO videos and the test videos
-    # list_cons=list(np.round(np.array(list_cons) * rate_hz/30).astype('int'))
+    #list_cons=list(np.round(np.array(list_cons) * rate_hz/30).astype('int'))
 
     # dictionary of pre-processing parameters
     Params_pre = {'gauss_filt_size':gauss_filt_size, 'num_median_approx':num_median_approx, 
@@ -170,17 +206,25 @@ if __name__ == '__main__':
 
 
     # pre-processing for training
-    for Exp_ID in list_Exp_ID: #
+    for Exp_ID in list_Exp_ID: 
         # %% Pre-process video
         video_input, _ = preprocess_video(dir_video, Exp_ID, Params_pre, dir_network_input, \
             useSF=useSF, useTF=useTF, useSNR=useSNR, med_subtract=med_subtract, prealloc=prealloc) #
 
-        # %% Determine active neurons in all frames using FISSA
+        # %% Determine active neurons in all frames using FISSA (debug and validation now inside generate_masks)
         file_mask = dir_GTMasks + Exp_ID + '.mat' # foldr to save the temporal masks
+        # Quick visibility of FISSA availability at call site
+        try:
+            import fissa  # type: ignore
+            print(f"[DEBUG] FISSA import OK; version={getattr(fissa, '__version__', 'unknown')}")
+        except Exception as e:
+            print(f"[DEBUG] FISSA import failed at call site: {e}")
+        print(f"[DEBUG] Calling generate_masks for Exp_ID={Exp_ID} with masks={file_mask}")
         generate_masks(video_input, file_mask, list_thred_ratio, dir_parent, Exp_ID)
+        print(f"[DEBUG] Finished generate_masks for Exp_ID={Exp_ID}")
         del video_input
 
-    # %% CNN training
+    # %% CNN training 
     if cross_validation == "use_all":
         list_CV = [nvideo]
     else: 

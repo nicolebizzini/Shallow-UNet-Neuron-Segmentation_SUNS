@@ -1,6 +1,12 @@
 import tensorflow as tf
-from keras import backend as K
-from tensorflow.python.keras import losses
+from tensorflow.keras import backend as K
+from tensorflow.keras import losses
+
+# Ensure channels_last to avoid NHWC/NCHW layout transforms on some TF builds
+try:
+    K.set_image_data_format('channels_last')
+except Exception:
+    pass
 
 
 def dice_coeff(y_true, y_pred):
@@ -75,9 +81,9 @@ def total_loss(y_true, y_pred, DL=1, BCE=20, FL=0, gamma=1, alpha=0.25):
     y_true = tf.cast(y_true, tf.float32)
     loss = DL * dice_loss(y_true, y_pred)
     if BCE:
-        loss += BCE * losses.binary_crossentropy(y_true, y_pred)
-    if DL:
-        loss += FL * binary_focal_loss(y_true, y_pred, gamma, alpha)
+        loss += BCE * losses.binary_crossentropy(y_true, y_pred) 
+    if FL:
+        loss += FL * binary_focal_loss(y_true, y_pred, gamma, alpha) #typo it has to be if FL
     return loss
 
 
@@ -138,7 +144,13 @@ def get_shallow_unet(size=None, Params_loss=None):
                 FL=Params_loss['FL'], gamma=Params_loss['gamma'], alpha=Params_loss['alpha'])
 
     model = tf.keras.Model(inputs=[inputs], outputs=[outputs])
-    model.compile(optimizer='adam', loss=loss_func, metrics=[dice_loss])
+    # Compile with a conservative LR and ensure no XLA dependency
+    try:
+        opt = tf.keras.optimizers.legacy.Adam(learning_rate=1e-3)
+    except Exception:
+        opt = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    # Explicitly disable jit_compile to avoid pulling in XLA on clusters missing libdevice
+    model.compile(optimizer=opt, loss=loss_func, metrics=[dice_loss], jit_compile=False)
     # model.compile(optimizer=tf.keras.optimizers.Adam(lr=1e-4), loss=loss_func, metrics=[dice_loss])
     return model
 

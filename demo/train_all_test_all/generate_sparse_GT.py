@@ -1,14 +1,29 @@
 import os
+import sys
 import numpy as np
 import h5py
 from scipy.io import savemat, loadmat
 from scipy import sparse
 import glob
+ 
+# Ensure repo root (containing 'suns') is on sys.path
+script_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.abspath(os.path.join(script_dir, '../..'))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+from suns.config import (
+    DATAFOLDER_SETS,
+    ACTIVE_EXP_SET,
+    EXP_ID_SETS,
+    OUTPUT_FOLDER,
+    RATE_HZ,
+    MAG,
+)
 
 
 if __name__ == '__main__':
     # Set the path of the 'GT Masks' folder, which contains the manual labels in 3D arrays.
-    dir_Masks = '../data/GT Masks'
+    dir_Masks = os.path.join(DATAFOLDER_SETS[ACTIVE_EXP_SET], 'GT Masks')
 
     # %%
     dir_all = glob.glob(os.path.join(dir_Masks,'*FinalMasks*.mat'))

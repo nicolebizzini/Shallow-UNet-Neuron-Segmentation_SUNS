@@ -14,7 +14,7 @@ from scipy.io import savemat, loadmat
 import multiprocessing as mp
 
 os.environ['KERAS_BACKEND'] = 'tensorflow'
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Set which GPU to use. '-1' uses only CPU.
+os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Set which GPU to use. '-1' uses only CPU.
 
 from suns.Online.functions_online import merge_2, merge_2_nocons, merge_complete, select_cons, \
     preprocess_online, CNN_online, separate_neuron_online, refine_seperate_cons_online, final_merge
@@ -221,6 +221,9 @@ def suns_online(filename_video, filename_CNN, Params_pre, Params_post, \
             for initalization, online processing, and total processing
         list_time_per (1D numpy.array of float): Time (s) spend on every frame during online processing
     '''
+    # Ensure integer parameters for array shapes and ranges
+    frames_init = int(frames_init)
+    merge_every = int(merge_every)
     if display:
         start = time.time()
     # Read the dimensions of the video
@@ -348,7 +351,8 @@ def suns_online(filename_video, filename_CNN, Params_pre, Params_post, \
             Lu2 = colsnb
         else: # If spatial filtering is not used, we can ignore the padded rows and columns
             Lu2 = Ly
-        Lu1 = int(np.round(frames_initf / Lu2))
+        # Ensure Lu1 >= 1 to avoid division by zero when frames_initf << lateral size
+        Lu1 = max(1, int(np.ceil(frames_initf / Lu2)))
         px_update = int(np.ceil(rowsnb / Lu1))
         Lu = Lu1 * Lu2
         start_update = frames_initf + frames_init
@@ -613,6 +617,9 @@ def suns_online_track(filename_video, filename_CNN, Params_pre, Params_post, \
             for initalization, online processing, and total processing
         list_time_per (1D numpy.array of float): Time (s) spend on every frame during online processing
     '''
+    # Ensure integer parameters for array shapes and ranges
+    frames_init = int(frames_init)
+    merge_every = int(merge_every)
     if display:
         start = time.time()
     # Read the dimensions of the video
@@ -740,7 +747,8 @@ def suns_online_track(filename_video, filename_CNN, Params_pre, Params_post, \
             Lu2 = colsnb
         else: # If spatial filtering is not used, we can ignore the padded rows and columns
             Lu2 = Ly
-        Lu1 = int(np.round(frames_initf / Lu2))
+        # Ensure Lu1 >= 1 to avoid division by zero when frames_initf << lateral size
+        Lu1 = max(1, int(np.ceil(frames_initf / Lu2)))
         px_update = int(np.ceil(rowsnb / Lu1))
         Lu = Lu1 * Lu2
         start_update = frames_initf + frames_init

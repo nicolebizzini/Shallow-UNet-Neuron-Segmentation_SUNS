@@ -1,0 +1,28 @@
+name: suns_tf215
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy<2.0
+  - scipy
+  - h5py
+  - scikit-image
+  - matplotlib
+  - imageio
+  - tifffile
+  - opencv
+  - pip
+  - pip:
+    - tensorflow==2.15.0
+    - fissa==0.7.2
+    - future==0.18.2
+    - py-cpuinfo==8.0.0
+    - pyfftw==0.13.0
+    - pyqt5-sip==4.19.18
+    - pyqtchart==5.12
+    - pyqtwebengine==5.12.1
+    - read-roi==1.6.0
+
+
+
