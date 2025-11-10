@@ -14,7 +14,7 @@ DATAFOLDER_SETS = {
 }
 
 # choose which set you’re working with
-ACTIVE_EXP_SET = '4video mouse7'   # or 'data' / 'demo'
+ACTIVE_EXP_SET = '4video_mouse7'   # or 'data' / 'demo'
 
 # identifiers used by your pipeline for each set
 EXP_ID_SETS = {
@@ -39,7 +39,7 @@ EXP_ID_SETS = {
     'mouse7_suite2pGT': [
         'mouse7_773', 'mouse7_774', 'mouse7_775', 'mouse7_776',
     ],
-    '4video mouse7': [
+    '4video_mouse7': [
         'mouse7_773', 'mouse7_774', 'mouse7_775', 'mouse7_776',
     ],
     '8videos_mouse7': [
@@ -56,7 +56,7 @@ OUTPUT_FOLDER = {
     'only_mouse7': 'output_8_videos',
     'mouse7_new': 'output_mouse7_new', #output_mouse7_new 
     'mouse7_suite2pGT': 'output_mouse7_suite2pGT',
-    '4video mouse7': 'output_4video_mouse7',
+    '4video_mouse7': 'output_4video_mouse7',
     '8videos_mouse7': 'output_8videos_mouse7',
 }
 
@@ -68,7 +68,7 @@ RATE_HZ = {
     'only_mouse7': 3.56,
     'mouse7_new': 3.56,
     'mouse7_suite2pGT': 3.56,
-    '4video mouse7': 3.56,
+    '4video_mouse7': 3.56,
     '8videos_mouse7': 3.56,
 }
 
@@ -81,7 +81,7 @@ MAG = {
     'only_mouse7': 0.399,
     'mouse7_new': 0.399,
     'mouse7_suite2pGT': 0.399,
-    '4video mouse7': 0.399,
+    '4video_mouse7': 0.399,
     '8videos_mouse7': 0.399,
 }
 
