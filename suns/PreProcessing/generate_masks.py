@@ -146,7 +146,11 @@ def generate_masks(network_input:np.array, file_mask:str, list_thred_ratio:list,
         prep = time.time()
         experiment.separate(redo_prep=False, redo_sep=True)
         finish = time.time()
-        experiment.save_to_matlab()
+        # Saving to MATLAB is optional and can fail if arrays are ragged; do not block the pipeline
+        try:
+            experiment.save_to_matlab()
+        except Exception as save_err:
+            print(f'[WARN] FISSA save_to_matlab failed and will be skipped: {save_err}')
         print('FISSA time: {} s'.format(finish-start))
         print('    Preparation time: {} s'.format(prep-start))
         print('    Separation time: {} s'.format(finish-prep))
@@ -165,7 +169,10 @@ def generate_masks(network_input:np.array, file_mask:str, list_thred_ratio:list,
             prep = time.time()
             experiment.separate(redo_prep=False, redo_sep=True)
             finish = time.time()
-            experiment.save_to_matlab()
+            try:
+                experiment.save_to_matlab()
+            except Exception as save_err2:
+                print(f'[WARN] FISSA save_to_matlab failed (alt order) and will be skipped: {save_err2}')
             print('FISSA (alt order) time: {} s'.format(finish-start))
             print('    Preparation time: {} s'.format(prep-start))
             print('    Separation time: {} s'.format(finish-prep))

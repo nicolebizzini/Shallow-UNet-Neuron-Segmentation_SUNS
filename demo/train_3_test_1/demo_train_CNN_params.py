@@ -88,7 +88,8 @@ if __name__ == '__main__':
     # average area of a typical neuron (unit: pixels in ABO videos)
     list_avgArea = [177] 
     # uint8 threshould of probablity map (uint8 variable, = float probablity * 256 - 1)
-    list_thresh_pmap = list(range(130,235,10))
+    #list_thresh_pmap = list(range(130,235,10))
+    list_thresh_pmap = list(range(130,180,10))
     # threshold to binarize the neuron masks. For each mask, 
     # values higher than "thresh_mask" times the maximum value of the mask are set to one.
     thresh_mask = 0.5
@@ -117,9 +118,9 @@ if __name__ == '__main__':
     Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
 
     # %% set training parameters
-    thred_std = 2.5 # 3 SNR threshold used to determine when neurons are active : Try 2, 2.5 if data are noisy
-    num_train_per = 1280 # they used2400 Number of frames per video used for training (2400/3000=80%), same for mydata 80% isof 1600 frames
-    NO_OF_EPOCHS = 120 # 200 Number of epoches used for training 
+    thred_std = 3 # 3 SNR threshold used to determine when neurons are active : Try 2, 2.5 if data are noisy
+    num_train_per = 1280 # 1280they used2400 Number of frames per video used for training (2400/3000=80%), same for mydata 80% isof 1600 frames
+    NO_OF_EPOCHS = 100 # 120 , 200 Number of epoches used for training 
     batch_size_eval = 100 # batch size in CNN inference
     list_thred_ratio = [thred_std] # A list of SNR threshold used to determine when neurons are active.
 

@@ -1,0 +1,8 @@
+Loading ops: /gpfs/data/shohamlab/nicole/tifdata/stacked/main/line3/20191109_mouse7_region1/suite2p/plane0/ops.npy
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+  File "/gpfs/home/bizzin01/.local/lib/python3.6/site-packages/numpy/lib/npyio.py", line 440, in load
+    pickle_kwargs=pickle_kwargs)
+  File "/gpfs/home/bizzin01/.local/lib/python3.6/site-packages/numpy/lib/format.py", line 732, in read_array
+    array = pickle.load(fp, **pickle_kwargs)
+ModuleNotFoundError: No module named 'numpy._core'

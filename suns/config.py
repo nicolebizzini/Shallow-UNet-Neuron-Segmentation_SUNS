@@ -9,12 +9,13 @@ DATAFOLDER_SETS = {
     'only_mouse7': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/only_mouse7',  # per-video H5s for mouse7
     'mouse7_new': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/mouse7_new',  # subset of only_mouse7 (first 4 videos)
     'mouse7_suite2pGT': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/mouse7_suite2pGT',  # suite2p-derived GT subset
-    '4video mouse7': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/4video mouse7',  # 4 videos + GT masks subset
-    '8videos_mouse7': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/8videos_mouse7',  # 8 videos + GT masks subset
+    '4video_mouse7': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/4video mouse7',  # 
+    '8videos_mouse7': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/8videos_mouse7',  #
+    '4mouse7_demo_pipeline': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole_git/Shallow-UNet-Neuron-Segmentation_SUNS/demo/4mouse7_demo_pipeline',  # standard cnn + pmap start from 80
+    '4mouse7_pmap': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole_git/Shallow-UNet-Neuron-Segmentation_SUNS/demo/4mouse7_pmap',  # standard cnn + pmap start from 130
 }
-
 # choose which set you’re working with
-ACTIVE_EXP_SET = '4video_mouse7'   # or 'data' / 'demo'
+ACTIVE_EXP_SET = '4mouse7_pmap'   # or 'data' / 'demo'
 
 # identifiers used by your pipeline for each set
 EXP_ID_SETS = {
@@ -46,6 +47,12 @@ EXP_ID_SETS = {
         'mouse7_773', 'mouse7_774', 'mouse7_775', 'mouse7_776',
         'mouse7_777', 'mouse7_778', 'mouse7_779', 'mouse7_780',
     ],
+    '4mouse7_demo_pipeline': [
+        'mouse7_773', 'mouse7_774', 'mouse7_775', 'mouse7_776',
+    ],
+    '4mouse7_pmap': [
+        'mouse7_773', 'mouse7_774', 'mouse7_775', 'mouse7_776',
+    ],
 }
 
 # where to drop pipeline outputs per set
@@ -58,6 +65,8 @@ OUTPUT_FOLDER = {
     'mouse7_suite2pGT': 'output_mouse7_suite2pGT',
     '4video_mouse7': 'output_4video_mouse7',
     '8videos_mouse7': 'output_8videos_mouse7',
+    '4mouse7_demo_pipeline': 'output_4mouse7_demo_pipeline',
+    '4mouse7_pmap': 'output_4mouse7_pmap',
 }
 
 # acquisition rate (Hz)
@@ -70,6 +79,8 @@ RATE_HZ = {
     'mouse7_suite2pGT': 3.56,
     '4video_mouse7': 3.56,
     '8videos_mouse7': 3.56,
+    '4mouse7_demo_pipeline': 3.56,
+    '4mouse7_pmap': 3.56,
 }
 
 # relative magnification vs ABO (0.785 µm/px baseline):
@@ -83,5 +94,7 @@ MAG = {
     'mouse7_suite2pGT': 0.399,
     '4video_mouse7': 0.399,
     '8videos_mouse7': 0.399,
+    '4mouse7_demo_pipeline': 0.399,
+    '4mouse7_pmap': 0.399,
 }
 

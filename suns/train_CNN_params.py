@@ -258,6 +258,42 @@ def parameter_optimization_pipeline(file_CNN, network_input, dims, \
     Time_frame = (finish_test-start_test)/network_input.shape[0]*1000
     print('Average infrence time {} ms/frame'.format(Time_frame))
 
+# -------- SAVE raw p-map (pre post-processing) into output_masks/<Exp_ID>/ --------
+    import os, h5py, numpy as np
+    # squeeze to (T, Lx, Ly) and keep float32 precision in [0,1]
+    prob_map_f32 = prob_map.squeeze(axis=-1)[:,:Lx,:Ly].astype('float32')
+
+    # Recover Exp_ID from GT filename (FinalMasks_<Exp_ID>[_sparse].mat)
+    try:
+        base = os.path.basename(filename_GT)
+        Exp_ID = base.replace('FinalMasks_','').replace('_sparse','').replace('.mat','')
+    except Exception:
+        Exp_ID = 'unknown'
+
+    # Extract CV tag from weights filename (Model_CV{n}.h5)
+    try:
+        cv_tag = os.path.splitext(os.path.basename(file_CNN))[0].replace('Model_','')  # e.g., "CV0"
+    except Exception:
+        cv_tag = 'CVX'
+
+    # Compute dir_parent from weights path, then use output_masks/<Exp_ID>
+    dir_parent = os.path.dirname(os.path.dirname(file_CNN))         # .../<parent>/
+    pmap_dir   = os.path.join(dir_parent, 'output_masks', Exp_ID)   # .../output_masks/<Exp_ID>/
+    os.makedirs(pmap_dir, exist_ok=True)
+
+    raw_path = os.path.join(pmap_dir, f'{Exp_ID}_{cv_tag}_pmap_raw.h5')
+    max_path = os.path.join(pmap_dir, f'{Exp_ID}_{cv_tag}_pmap_max.h5')
+
+    with h5py.File(raw_path, 'w') as f:
+        f.create_dataset('pmap', data=prob_map_f32, compression='gzip')     # (T, Lx, Ly) float32
+    with h5py.File(max_path, 'w') as f:
+        f.create_dataset('pmap_max', data=prob_map_f32.max(axis=0), compression='gzip')  # (Lx, Ly) float32
+
+    print(f'[pmap] saved: {raw_path}')
+    print(f'[pmap] saved: {max_path}')
+    
+    # -------------------end saving pmp-----------------------------
+
     # convert the output probability map from float to uint8 to speed up future parameter optimization
     prob_map = prob_map.squeeze(axis=-1)[:,:Lx,:Ly]
     pmaps = np.zeros(prob_map.shape, dtype='uint8')
