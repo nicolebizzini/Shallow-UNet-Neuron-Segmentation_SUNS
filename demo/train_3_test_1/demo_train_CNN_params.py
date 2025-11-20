@@ -66,7 +66,6 @@ else: # tf_version == 2:
         except Exception:
             pass
 
-
 # %%
 if __name__ == '__main__':
     #-------------- Start user-defined parameters --------------#
@@ -88,8 +87,7 @@ if __name__ == '__main__':
     # average area of a typical neuron (unit: pixels in ABO videos)
     list_avgArea = [177] 
     # uint8 threshould of probablity map (uint8 variable, = float probablity * 256 - 1)
-    #list_thresh_pmap = list(range(130,235,10))
-    list_thresh_pmap = list(range(130,180,10))
+    list_thresh_pmap = list(range(120,150,10))
     # threshold to binarize the neuron masks. For each mask, 
     # values higher than "thresh_mask" times the maximum value of the mask are set to one.
     thresh_mask = 0.5
@@ -188,7 +186,7 @@ if __name__ == '__main__':
     num_total = nframes - Poisson_filt.size + 1 # number of frames used for CNN training. 
         # Can be slightly smaller than the number of frames of a video after temporal filtering
 
-    # adjust the units of the hyper-parameters to pixels in the test videos according to relative magnification
+    #adjust the units of the hyper-parameters to pixels in the test videos according to relative magnification
     list_minArea= list(np.round(np.array(list_minArea) * Mag**2))
     list_avgArea= list(np.round(np.array(list_avgArea) * Mag**2))
     thresh_COM0= thresh_COM0 * Mag

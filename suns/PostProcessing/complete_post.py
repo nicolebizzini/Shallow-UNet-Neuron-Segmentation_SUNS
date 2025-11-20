@@ -126,10 +126,10 @@ def complete_segment(pmaps: np.ndarray, Params: dict, useMP=True, useWT=False, d
         if display:
             print('{:25s}: Used {:9.6f} s, {:9.6f} ms/frame, '\
                 .format('refine_seperate', end_all - start, (end_all - start) / nframes * 1000),\
-                    '{:6d} segmented neurons.'.format(len(times_final)))
+                    '{:6d} segmented neurons.'.format(len(times_cons)))
             print('{:25s}: Used {:9.6f} s, {:9.6f} ms/frame, '\
                 .format('Total time', end_all - start_all, (end_all - start_all) / nframes * 1000),\
-                    '{:6d} segmented neurons.'.format(len(times_final)))
+                    '{:6d} segmented neurons.'.format(len(times_cons)))
 
     return Masks_2, times_cons
 

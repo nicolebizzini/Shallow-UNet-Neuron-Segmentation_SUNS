@@ -6,6 +6,7 @@ import h5py
 import sys
 
 from scipy.io import savemat, loadmat
+from scipy.sparse import issparse, csc_matrix, csr_matrix
 import multiprocessing as mp
 
 sys.path.insert(1, '../..') # the path containing "suns" folder
@@ -151,9 +152,21 @@ if __name__ == '__main__':
         # %% Evaluation of the segmentation accuracy compared to manual ground truth
         filename_GT = dir_GTMasks + Exp_ID + '_sparse.mat'
         data_GT=loadmat(filename_GT)
-        # Ensure GT masks are shaped as (N_gt_neurons, N_pixels)
-        GTMasks_2 = data_GT['GTMasks_2'].astype('bool')
+        # Ensure GT masks are sparse and shaped as (N_gt_neurons, N_pixels)
+        GTMasks_2 = data_GT['GTMasks_2']
+        if not issparse(GTMasks_2):
+            GTMasks_2 = csc_matrix(GTMasks_2)
+        # Orient to (n_gt, n_pixels) to match evaluator expectation
+        n_pixels_pred = Masks_2.shape[1]
+        if GTMasks_2.shape[1] == n_pixels_pred:
+            pass  # already (n_gt, n_pixels)
+        elif GTMasks_2.shape[0] == n_pixels_pred:
+            GTMasks_2 = GTMasks_2.transpose()
+        else:
+            print(f"Warning: Unexpected GT shape {GTMasks_2.shape} vs predicted pixels {n_pixels_pred}.")
+        GTMasks_2 = GTMasks_2.tocsr()
         print(f"GTMasks_2 shape: {GTMasks_2.shape}")
+        print(f"Masks_2 shape: {Masks_2.shape}")
         (Recall,Precision,F1) = GetPerformance_Jaccard_2(GTMasks_2, Masks_2, ThreshJ=0.5)
         print({'Recall':Recall, 'Precision':Precision, 'F1':F1})
 

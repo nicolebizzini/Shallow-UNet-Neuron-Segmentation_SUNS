@@ -46,7 +46,7 @@ else: # tf_version == 2:
 if __name__ == '__main__':
     #-------------- Start user-defined parameters --------------#
     # Optional: override the active dataset set in suns_config for this script only
-    active_set = 'only_mouse7'
+    active_set = 'line3_dataset'
     # %% set folders using config
     # file names of the ".h5" files storing the raw videos. 
     list_Exp_ID = suns_config.EXP_ID_SETS[active_set]
@@ -96,8 +96,8 @@ if __name__ == '__main__':
 
     # %% set training parameters
     thred_std = 3 # SNR threshold used to determine when neurons are active
-    num_train_per = 750 #2400 Number of frames per video used for training 
-    NO_OF_EPOCHS = 20 # Fine-tune epochs (short run)
+    num_train_per = 1280 #2400 Number of frames per video used for training 
+    NO_OF_EPOCHS = 100 # Fine-tune epochs (short run)
     batch_size_eval = 100 # batch size in CNN inference
     list_thred_ratio = [thred_std] # A list of SNR threshold used to determine when neurons are active.
 
@@ -219,16 +219,15 @@ if __name__ == '__main__':
         if not use_validation:
             list_Exp_ID_val = None # Afternatively, we can get rid of validation steps
         file_CNN = os.path.join(weights_path, 'Model_CV{}.h5'.format(CV))
-        # # Use pretrained model for fine-tuning if available
-        # exist_model_arg = pretrained_weights
-        # fine_tune_lr_arg = (FINE_TUNE_LR if pretrained_weights is not None else None)
-        # unfreeze_last_k_arg = (UNFREEZE_LAST_K if pretrained_weights is not None else None)
-        # Default to no fine-tuning unless configured above
-        exist_model_arg = None
-        fine_tune_lr_arg = None
-        unfreeze_last_k_arg = None
+
+        # # Use pretrained model for fine-tuning (transfer from mouse7)-----
+        # exist_model_arg = "/gpfs/home/bizzin01/nicole/code/SUNS_nicole_git/Shallow-UNet-Neuron-Segmentation_SUNS/demo/only_mouse7/output_mouse7_videos/Weights/Model_CV15.h5"
+        # # Typical fine-tuning setup: smaller LR, unfreeze last K layers
+        # fine_tune_lr_arg = 1e-4
+        # unfreeze_last_k_arg = 20
+        # # -------------------------------------------------------------
         results = train_CNN(dir_network_input, dir_mask, file_CNN, list_Exp_ID_train, list_Exp_ID_val, \
-            BATCH_SIZE, NO_OF_EPOCHS, num_train_per, num_total, (rowspad, colspad), Params_loss, exist_model=exist_model_arg, fine_tune_lr=fine_tune_lr_arg, unfreeze_last_k=unfreeze_last_k_arg, use_early_stopping=True)
+            BATCH_SIZE, NO_OF_EPOCHS, num_train_per, num_total, (rowspad, colspad), Params_loss, exist_model=None, fine_tune_lr=None, unfreeze_last_k=None, use_early_stopping=True)
 
         # save training/validation curves; guard for missing metrics
         f = h5py.File(os.path.join(training_output_path, "training_output_CV{}.h5".format(CV)), "w")

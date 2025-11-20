@@ -5,6 +5,7 @@ import time
 import h5py
 import sys
 from scipy import sparse
+from suns.config import DATAFOLDER_SETS, EXP_ID_SETS, ACTIVE_EXP_SET, OUTPUT_FOLDER, RATE_HZ, MAG
 
 from scipy.io import savemat, loadmat
 import multiprocessing as mp
@@ -33,22 +34,20 @@ else: # tf_version == 2:
 if __name__ == '__main__':
     #-------------- Start user-defined parameters --------------#
     # %% set folders
-    # file names of the ".h5" files storing the raw test videos. 
-    # They usually should not overlap with the train videos, and the number of videos do not need to be the same as well.
-    # We used the same videos as the train videos here only for demo. 
-    list_Exp_ID = ['YST_part11', 'YST_part12', 'YST_part21', 'YST_part22'] 
-    # number of train videos. Do not need to be the same as the number of test videos
-    nvideo_train = 4 
-    # folder of the raw test videos
-    dir_video = '../data' 
-    # folder of the raw train videos
-    dir_video_train = '../data' 
-    # folder of the ".mat" files stroing the GT masks in sparse 2D matrices. 'FinalMasks_' is a prefix of the file names. 
-    dir_GTMasks = os.path.join(dir_video, 'GT Masks', 'FinalMasks_') 
+    # select dataset and IDs from config
+    list_Exp_ID = EXP_ID_SETS[ACTIVE_EXP_SET]
+    # number of train videos used to choose the weight filename (Model_CV{n}.h5)
+    nvideo_train = 4
+    # folder of the raw test videos (dataset root) from config
+    dir_video = DATAFOLDER_SETS[ACTIVE_EXP_SET]
+    # folder of the raw train videos (use the original ABO 'data' set for pretrained weights)
+    dir_video_train = DATAFOLDER_SETS.get('data', dir_video)
+    # folder of the ".mat" files storing the GT masks in sparse 2D matrices (if present)
+    dir_GTMasks = os.path.join(dir_video, 'GT Masks', 'FinalMasks_')
 
     # %% set video parameters
-    rate_hz = 10 # frame rate of the video
-    Mag = 6/8 # spatial magnification compared to ABO videos (0.785 um/pixel). # Mag = 0.785 / pixel_size
+    rate_hz = RATE_HZ[ACTIVE_EXP_SET] # frame rate of the video
+    Mag = MAG[ACTIVE_EXP_SET] # spatial magnification compared to ABO videos (0.785 um/pixel). # Mag = 0.785 / pixel_size
 
     # %% set pre-processing parameters
     gauss_filt_size = 50*Mag # standard deviation of the spatial Gaussian filter in pixels
@@ -83,9 +82,10 @@ if __name__ == '__main__':
     #-------------- End user-defined parameters --------------#
 
 
-    dir_parent = os.path.join(dir_video, 'noSF use_all') # folder to save all the processed data for test videos
+    # folders to save processed data and to load weights/params
+    dir_parent = os.path.join(dir_video, OUTPUT_FOLDER.get(ACTIVE_EXP_SET, 'noSF')) # folder to save all the processed data for test videos
     dir_parent_train = os.path.join(dir_video_train, 'noSF use_all') # folder to save all the processed data for train videos
-    dir_output = os.path.join(dir_parent, 'output_masks online') # folder to save the segmented masks and the performance scores
+    dir_output = os.path.join(dir_parent, 'output_masks_online') # folder to save the segmented masks and the performance scores
     dir_params = os.path.join(dir_parent_train, 'output_masks') # folder of the optimized hyper-parameters
     weights_path = os.path.join(dir_parent_train, 'Weights') # folder of the trained CNN
     if not os.path.exists(dir_output):
@@ -155,10 +155,14 @@ if __name__ == '__main__':
 
         # %% Evaluation of the segmentation accuracy compared to manual ground truth
         filename_GT = dir_GTMasks + Exp_ID + '_sparse.mat'
-        data_GT=loadmat(filename_GT)
-        GTMasks_2 = data_GT['GTMasks_2'].transpose().astype('bool')
-        (Recall,Precision,F1) = GetPerformance_Jaccard_2(GTMasks_2, Masks_2, ThreshJ=0.5)
-        print({'Recall':Recall, 'Precision':Precision, 'F1':F1})
+        if os.path.exists(filename_GT):
+            data_GT=loadmat(filename_GT)
+            GTMasks_2 = data_GT['GTMasks_2'].transpose().astype('bool')
+            (Recall,Precision,F1) = GetPerformance_Jaccard_2(GTMasks_2, Masks_2, ThreshJ=0.5)
+            print({'Recall':Recall, 'Precision':Precision, 'F1':F1})
+        else:
+            Recall = Precision = F1 = np.nan
+            print('GT file not found, skipping evaluation:', filename_GT)
 
         # %% Save recall, precision, F1, total processing time, and average processing time per frame
         list_Recall[CV] = Recall
