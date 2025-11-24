@@ -4,7 +4,7 @@ import os
 # where each dataset lives on disk
 DATAFOLDER_SETS = {
     'data': '/gpfs/data/shohamlab/nicole/code/SUNS_nicole/demo/data',  # keep as-is if your demo code expects this
-    'line3_dataset': '/gpfs/data/shohamlab/nicole/code/SUNS_nicole/demo/line3_dataset',  # <- outside "data", as you wanted
+    'line3_dataset': '/gpfs/data/shohamlab/nicole/code/SUNS_nicole_git/Shallow-UNet-Neuron-Segmentation_SUNS/demo/line3_dataset',  # <- outside "data", as you wanted
     'line3_scaled': '/gpfs/data/shohamlab/nicole/code/SUNS_nicole/demo/line3_scaled',  # cropped and scaled to match demo data
     'only_mouse7': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/only_mouse7',  # per-video H5s for mouse7
     'mouse7_new': '/gpfs/home/bizzin01/nicole/code/SUNS_nicole/demo/mouse7_new',  # subset of only_mouse7 (first 4 videos)
@@ -66,7 +66,7 @@ EXP_ID_SETS = {
 # where to drop pipeline outputs per set
 OUTPUT_FOLDER = {
     'data': 'noSF',
-    'line3_dataset':'output_original_weights', #'output_line3',  # name as you like
+    'line3_dataset':'output_line3', #'output_original_weights', 'output_line3'  # name as you like
     'line3_scaled': 'output_line3_scaled',  # outputs for scaled dataset
     'only_mouse7': 'output_mouse7_videos',
     'mouse7_new': 'output_mouse7_new', #output_mouse7_new 

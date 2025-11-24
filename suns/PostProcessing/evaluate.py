@@ -4,7 +4,7 @@ from scipy.optimize import linear_sum_assignment
 import time
 
 
-#change ThreshJ to 0.20 orriginally was 0.50
+#ThreshJ orriginally is 0.50
 def GetPerformance_Jaccard_2(GTMasks, Masks, ThreshJ=0.5):
     '''Calculate the recall, precision, and F1 score of segmented neurons by comparing with ground truth.
 

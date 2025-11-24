@@ -5,14 +5,18 @@ import time
 import h5py
 import sys
 from scipy import sparse
+from scipy import sparse
+# Ensure repo root is on sys.path so 'suns' can be imported when running from subfolders
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 from suns.config import DATAFOLDER_SETS, EXP_ID_SETS, ACTIVE_EXP_SET, OUTPUT_FOLDER, RATE_HZ, MAG
 
 from scipy.io import savemat, loadmat
 import multiprocessing as mp
 
-sys.path.insert(1, '../..') # the path containing "suns" folder
 os.environ['KERAS_BACKEND'] = 'tensorflow'
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Set which GPU to use. '-1' uses only CPU.
+os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Set which GPU to use. '-1' uses only CPU.
 
 from suns.PostProcessing.evaluate import GetPerformance_Jaccard_2
 from suns.run_suns import suns_online
@@ -53,17 +57,17 @@ if __name__ == '__main__':
     gauss_filt_size = 50*Mag # standard deviation of the spatial Gaussian filter in pixels
     frames_init = 30 * rate_hz # number of frames used for initialization
     num_median_approx = frames_init # number of frames used to caluclate median and median-based standard deviation
-    filename_TF_template = '../YST_spike_tempolate.h5' # file name of the temporal filter kernel
-    h5f = h5py.File(filename_TF_template,'r')
-    Poisson_filt = np.array(h5f['filter_tempolate']).squeeze().astype('float32')
-    h5f.close()
-    Poisson_filt = Poisson_filt[Poisson_filt>np.exp(-1)] # temporal filter kernel
-    Poisson_filt = Poisson_filt/Poisson_filt.sum()
-    # # Alternative temporal filter kernel using a single exponential decay function
-    # decay = 0.8 # decay time constant (unit: second)
-    # leng_tf = np.ceil(rate_hz*decay)+1
-    # Poisson_filt = np.exp(-np.arange(leng_tf)/rate_hz/decay)
-    # Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
+    # filename_TF_template = '../YST_spike_tempolate.h5' # file name of the temporal filter kernel
+    # h5f = h5py.File(filename_TF_template,'r')
+    # Poisson_filt = np.array(h5f['filter_tempolate']).squeeze().astype('float32')
+    # h5f.close()
+    # Poisson_filt = Poisson_filt[Poisson_filt>np.exp(-1)] # temporal filter kernel
+    # Poisson_filt = Poisson_filt/Poisson_filt.sum()
+    # Alternative temporal filter kernel using a single exponential decay function
+    decay = 1.25 # decay time constant (unit: second)
+    leng_tf = np.ceil(rate_hz*decay)+1
+    Poisson_filt = np.exp(-np.arange(leng_tf)/rate_hz/decay)
+    Poisson_filt = (Poisson_filt / Poisson_filt.sum()).astype('float32')
 
     # %% Set processing options
     useSF=False # True if spatial filtering is used in pre-processing.
@@ -90,6 +94,32 @@ if __name__ == '__main__':
     weights_path = os.path.join(dir_parent_train, 'Weights') # folder of the trained CNN
     if not os.path.exists(dir_output):
         os.makedirs(dir_output) 
+
+    # Fallback: if the expected train artifacts are not found, try known repos paths
+    def _pick_existing_train_root(default_root, default_cv):
+        REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+        candidates = [
+            (default_root, default_cv),
+            # Known artifact locations in this repo (prefer exact existing pairs)
+            (os.path.join(REPO_ROOT, 'demo', 'line3_dataset', 'output_original_weights'), 10),
+            (os.path.join(REPO_ROOT, 'demo', 'line3_dataset', 'output_line3'), 3),
+            (os.path.join(REPO_ROOT, 'demo', 'line3_scaled', 'output_line3_scaled'), 4),
+        ]
+        for (root, cv) in candidates:
+            wp = os.path.join(root, 'Weights', f'Model_CV{cv}.h5')
+            pp = os.path.join(root, 'output_masks', f'Optimization_Info_{cv}.mat')
+            if os.path.exists(wp) and os.path.exists(pp):
+                return root, cv
+        return default_root, default_cv
+
+    # Verify current choice; switch if missing
+    expected_weights = os.path.join(weights_path, f'Model_CV{nvideo_train}.h5')
+    expected_params  = os.path.join(dir_params, f'Optimization_Info_{nvideo_train}.mat')
+    if not (os.path.exists(expected_weights) and os.path.exists(expected_params)):
+        dir_parent_train, nvideo_train = _pick_existing_train_root(dir_parent_train, nvideo_train)
+        weights_path = os.path.join(dir_parent_train, 'Weights')
+        dir_params   = os.path.join(dir_parent_train, 'output_masks')
+        print(f'Using train artifacts from: {dir_parent_train} (CV={nvideo_train})')
 
     # dictionary of pre-processing parameters
     if not useTF:
