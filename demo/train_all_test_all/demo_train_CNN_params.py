@@ -46,7 +46,7 @@ else: # tf_version == 2:
 if __name__ == '__main__':
     #-------------- Start user-defined parameters --------------#
     # Optional: override the active dataset set in suns_config for this script only
-    active_set = 'line3_dataset'
+    active_set = '8videos_mouse7'
     # %% set folders using config
     # file names of the ".h5" files storing the raw videos. 
     list_Exp_ID = suns_config.EXP_ID_SETS[active_set]
@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
     # %% set training parameters
     thred_std = 3 # SNR threshold used to determine when neurons are active
-    num_train_per = 1280 #2400 Number of frames per video used for training 
+    num_train_per = 900 #2400 Number of frames per video used for training 
     NO_OF_EPOCHS = 100 # Fine-tune epochs (short run)
     batch_size_eval = 100 # batch size in CNN inference
     list_thred_ratio = [thred_std] # A list of SNR threshold used to determine when neurons are active.

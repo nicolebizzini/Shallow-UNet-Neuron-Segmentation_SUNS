@@ -190,10 +190,14 @@ def select_cons(tuple_final):
     '''
     Masksb_final, _, _, _, have_cons = tuple_final
     if np.any(have_cons):
-        Masksb_final = [el for (bl,el) in zip(have_cons,Masksb_final) if bl]
-    else:
-        Masksb_final = sparse.csc_matrix((0,Masksb_final[0].shape[1]), dtype='bool')
-    return Masksb_final
+        Masksb_final = [el for (bl, el) in zip(have_cons, Masksb_final) if bl]
+        return Masksb_final
+    # No masks satisfy the consecutive requirement
+    # If there are masks but none satisfy, construct 0-row matrix with correct column size
+    if len(Masksb_final) > 0:
+        return sparse.csc_matrix((0, Masksb_final[0].shape[1]), dtype='bool')
+    # If there are no masks at all, return an empty 0x0 matrix to avoid indexing errors
+    return sparse.csc_matrix((0, 0), dtype='bool')
 
 
 def merge_complete(segs, dims, Params):
@@ -314,6 +318,8 @@ def merge_2(tuple1, tuple2, dims, Params):
     
     Masksb1, masks1, times1, area1, have_cons1 = tuple1
     N1 = len(masks1)
+    if N1==0: # No existing masks; just add the new ones
+        return (Masksb2, masks2, times2, area2, have_cons2)
 
     # Calculate IoU and consume ratio. Each row is an old mask, and each column is a new mask
     area1_2d = np.expand_dims(area1, axis=1).repeat(N2, axis=1)

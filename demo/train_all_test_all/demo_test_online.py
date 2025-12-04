@@ -41,7 +41,7 @@ if __name__ == '__main__':
     # select dataset and IDs from config
     list_Exp_ID = EXP_ID_SETS[ACTIVE_EXP_SET]
     # number of train videos used to choose the weight filename (Model_CV{n}.h5)
-    nvideo_train = 4
+    nvideo_train = 10
     # folder of the raw test videos (dataset root) from config
     dir_video = DATAFOLDER_SETS[ACTIVE_EXP_SET]
     # folder of the raw train videos (use the original ABO 'data' set for pretrained weights)
@@ -180,8 +180,13 @@ if __name__ == '__main__':
             useSF=useSF, useTF=useTF, useSNR=useSNR, med_subtract=med_subtract, \
             update_baseline=update_baseline, useWT=useWT, \
             show_intermediate=show_intermediate, prealloc=prealloc, display=display, p=p)
+        # times_active is a ragged list of 1D arrays; save as a MATLAB cell array (Nx1)
+        Ncells = len(times_active)
+        times_active_cell = np.empty((Ncells, 1), dtype=object)
+        for i in range(Ncells):
+            times_active_cell[i, 0] = np.asarray(times_active[i], dtype=np.int32)
         savemat(os.path.join(dir_output, 'Output_Masks_{}.mat'.format(Exp_ID)), \
-            {'Masks':Masks, 'times_active':times_active, 'list_time_per':list_time_per}, do_compression=True)
+            {'Masks':Masks, 'times_active':times_active_cell, 'list_time_per':np.asarray(list_time_per, dtype=np.float32)}, do_compression=True)
 
         # %% Evaluation of the segmentation accuracy compared to manual ground truth
         filename_GT = dir_GTMasks + Exp_ID + '_sparse.mat'

@@ -360,9 +360,18 @@ def suns_online(filename_video, filename_CNN, Params_pre, Params_post, \
 
 
     # %% Load raw video
-    h5_file = h5py.File(filename_video, 'r')
-    video_raw = np.array(h5_file[dset])
-    h5_file.close()
+    with h5py.File(filename_video, 'r') as h5_file:
+        dset_obj = h5_file[dset]
+        try:
+            video_raw = dset_obj[...]
+        except Exception as e:
+            print(f'Warning: bulk read failed: {e}. Falling back to per-frame read with zero-fill on errors')
+            video_raw = np.zeros((nframes, Lx, Ly), dtype=dset_obj.dtype)
+            for i in range(nframes):
+                try:
+                    video_raw[i] = dset_obj[i]
+                except Exception as e2:
+                    print(f'Warning: failed to read frame {i}: {e2}. Using zeros.')
     nframes = video_raw.shape[0]
     nframesf = nframes - leng_tf + 1
     bb[:, :Lx, :Ly] = video_raw[:frames_init]
@@ -756,9 +765,18 @@ def suns_online_track(filename_video, filename_CNN, Params_pre, Params_post, \
 
 
     # %% Load raw video
-    h5_file = h5py.File(filename_video, 'r')
-    video_raw = np.array(h5_file[dset])
-    h5_file.close()
+    with h5py.File(filename_video, 'r') as h5_file:
+        dset_obj = h5_file[dset]
+        try:
+            video_raw = dset_obj[...]
+        except Exception as e:
+            print(f'Warning: bulk read failed: {e}. Falling back to per-frame read with zero-fill on errors')
+            video_raw = np.zeros((nframes, Lx, Ly), dtype=dset_obj.dtype)
+            for i in range(nframes):
+                try:
+                    video_raw[i] = dset_obj[i]
+                except Exception as e2:
+                    print(f'Warning: failed to read frame {i}: {e2}. Using zeros.')
     nframes = video_raw.shape[0]
     nframesf = nframes - leng_tf + 1
     bb[:, :Lx, :Ly] = video_raw[:frames_init]
